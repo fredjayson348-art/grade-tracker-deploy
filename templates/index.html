@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grade Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
+        .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        h1 { color: #38bdf8; }
+        .user-info { font-size: 14px; color: #94a3b8; }
+        .btn-logout { background: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .card { background: #1e293b; border-radius: 10px; padding: 15px; margin-bottom: 15px; }
+        .card h2 { color: #38bdf8; margin-bottom: 10px; font-size: 16px; }
+        input { width: 100%; padding: 10px; margin: 5px 0; border-radius: 6px; border: none; background: #334155; color: white; }
+        button { width: 100%; padding: 10px; margin-top: 8px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-add { background: #38bdf8; color: #0f172a; }
+        .btn-report { background: #22c55e; color: #0f172a; }
+        .grade-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #334155; border-radius: 6px; margin: 5px 0; gap: 6px; }
+        .grade-item .info { flex: 1; }
+        .grade-A { border-left: 4px solid #22c55e; }
+        .grade-B { border-left: 4px solid #38bdf8; }
+        .grade-C { border-left: 4px solid #facc15; }
+        .grade-D { border-left: 4px solid #fb923c; }
+        .grade-F { border-left: 4px solid #ef4444; }
+        .btn-del { background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
+        .btn-edit { background: #f59e0b; color: #0f172a; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
+        .btn-save { background: #22c55e; color: #0f172a; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
+        .edit-input { width: 70px; padding: 4px 6px; border-radius: 4px; border: none; background: #1e293b; color: white; font-size: 13px; }
+        .report-box { background: #334155; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 10px; }
+        .report-box p { margin: 5px 0; font-size: 18px; font-weight: bold; color: #38bdf8; }
+        .chart-container { background: #334155; border-radius: 6px; padding: 10px; margin-top: 10px; }
+        .msg { padding: 8px; border-radius: 6px; margin-top: 8px; text-align: center; display: none; }
+        .msg.success { background: #166534; color: #86efac; display: block; }
+        .msg.error { background: #7f1d1d; color: #fca5a5; display: block; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>🎓 Grade Tracker</h1>
+        <div>
+            <span class="user-info">👤 {{ username }}</span><br>
+            <button class="btn-logout" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>➕ Add Subject</h2>
+        <input type="text" id="subject" placeholder="Subject name" />
+        <input type="number" id="score" placeholder="Score (0-100)" />
+        <button class="btn-add" onclick="addGrade()">Add Grade</button>
+        <div id="msg" class="msg"></div>
+    </div>
+
+    <div class="card">
+        <h2>📊 Your Grades</h2>
+        <div id="grades-list">Loading...</div>
+    </div>
+
+    <div class="card">
+        <h2>📈 Report</h2>
+        <div id="report-box" class="report-box">Loading...</div>
+        <div class="chart-container">
+            <canvas id="gradesChart"></canvas>
+        </div>
+        <button class="btn-report" onclick="loadReport()">Refresh Report</button>
+    </div>
+
+    <script>
+        let chartInstance = null;
+
+        function getBarColor(score) {
+            if (score >= 80) return '#22c55e';
+            if (score >= 70) return '#38bdf8';
+            if (score >= 60) return '#facc15';
+            if (score >= 50) return '#fb923c';
+            return '#ef4444';
+        }
+
+        function renderChart(labels, scores) {
+            const ctx = document.getElementById('gradesChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Score',
+                        data: scores,
+                        backgroundColor: scores.map(s => getBarColor(s)),
+                        borderRadius: 6,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` Score: ${ctx.parsed.y}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: '#1e293b' }
+                        },
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadGrades() {
+            const res = await fetch('/grades');
+            if (res.status === 401) { window.location.href = '/login'; return; }
+            const data = await res.json();
+            const list = document.getElementById('grades-list');
+            list.innerHTML = '';
+            const entries = Object.entries(data);
+            if (entries.length === 0) { list.innerHTML = '<p>No grades yet!</p>'; return; }
+            for (const [subject, info] of entries) {
+                const div = document.createElement('div');
+                div.className = `grade-item grade-${info.letter}`;
+                div.id = `row-${subject}`;
+                div.innerHTML = `
+                    <span class="info"><strong>${subject}</strong> — ${info.score} (${info.letter}) | GPA: ${info.gpa}</span>
+                    <button class="btn-edit" onclick="startEdit('${subject}', ${info.score})">✏️</button>
+                    <button class="btn-del" onclick="deleteGrade('${subject}')">✕</button>
+                `;
+                list.appendChild(div);
+            }
+            const labels = entries.map(([s]) => s);
+            const scores = entries.map(([, i]) => i.score);
+            renderChart(labels, scores);
+        }
+
+        function startEdit(subject, currentScore) {
+            const row = document.getElementById(`row-${subject}`);
+            row.innerHTML = `
+                <span class="info"><strong>${subject}</strong></span>
+                <input class="edit-input" type="number" id="edit-${subject}" value="${currentScore}" min="0" max="100" />
+                <button class="btn-save" onclick="saveEdit('${subject}')">Save</button>
+                <button class="btn-del" onclick="loadGrades()">✕</button>
+            `;
+        }
+
+        async function saveEdit(subject) {
+            const newScore = parseFloat(document.getElementById(`edit-${subject}`).value);
+            if (isNaN(newScore) || newScore < 0 || newScore > 100) {
+                alert('Please enter a valid score between 0 and 100');
+                return;
+            }
+            const res = await fetch('/grades/' + encodeURIComponent(subject), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ score: newScore })
+            });
+            if (res.ok) { loadGrades(); loadReport(); }
+        }
+
+        async function loadReport() {
+            const res = await fetch('/report');
+            if (res.status === 401) { window.location.href = '/login'; return; }
+            const data = await res.json();
+            if (data.error) {
+                document.getElementById('report-box').innerHTML = `<p style="color:#fb923c;">${data.error}</p>`;
+                return;
+            }
+            document.getElementById('report-box').innerHTML = `
+                <p>Average: ${data.average}</p>
+                <p>GPA: ${data.gpa}</p>
+                <p>Subjects: ${data.total_subjects}</p>
+                <p>Overall Grade: ${data.overall_grade}</p>
+            `;
+        }
+
+        async function addGrade() {
+            const subject = document.getElementById('subject').value;
+            const score = parseFloat(document.getElementById('score').value);
+            const msg = document.getElementById('msg');
+            const res = await fetch('/grades', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subject, score })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                msg.className = 'msg success';
+                msg.textContent = '✓ ' + data.message;
+                document.getElementById('subject').value = '';
+                document.getElementById('score').value = '';
+                loadGrades();
+                loadReport();
+            } else {
+                msg.className = 'msg error';
+                msg.textContent = '❌ ' + data.error;
+            }
+        }
+
+        async function deleteGrade(subject) {
+            const res = await fetch('/grades/' + encodeURIComponent(subject), { method: 'DELETE' });
+            if (res.ok) { loadGrades(); loadReport(); }
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        loadGrades();
+        loadReport();
+    </script>
+</body>
+</html>

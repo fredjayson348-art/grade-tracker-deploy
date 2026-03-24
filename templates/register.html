@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Grade Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .card { background: #1e293b; border-radius: 10px; padding: 30px; width: 100%; max-width: 400px; }
+        h1 { text-align: center; color: #38bdf8; margin-bottom: 8px; }
+        p.sub { text-align: center; color: #94a3b8; margin-bottom: 20px; font-size: 14px; }
+        input { width: 100%; padding: 12px; margin: 6px 0; border-radius: 6px; border: none; background: #334155; color: white; font-size: 15px; }
+        button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 15px; background: #22c55e; color: #0f172a; }
+        .link { text-align: center; margin-top: 15px; font-size: 14px; color: #94a3b8; }
+        .link a { color: #38bdf8; text-decoration: none; }
+        .msg { padding: 8px; border-radius: 6px; margin-top: 10px; text-align: center; display: none; font-size: 14px; }
+        .msg.success { background: #166534; color: #86efac; display: block; }
+        .msg.error { background: #7f1d1d; color: #fca5a5; display: block; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🎓 Grade Tracker</h1>
+        <p class="sub">Create a new account</p>
+        <input type="text" id="username" placeholder="Choose a username" />
+        <input type="password" id="password" placeholder="Choose a password" />
+        <input type="password" id="confirm" placeholder="Confirm password" />
+        <button onclick="register()">Create Account</button>
+        <div id="msg" class="msg"></div>
+        <div class="link">Already have an account? <a href="/login">Login here</a></div>
+    </div>
+    <script>
+        async function register() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const confirm = document.getElementById('confirm').value;
+            const msg = document.getElementById('msg');
+            if (!username || !password || !confirm) {
+                msg.className = 'msg error';
+                msg.textContent = '❌ Please fill in all fields';
+                return;
+            }
+            if (password !== confirm) {
+                msg.className = 'msg error';
+                msg.textContent = '❌ Passwords do not match';
+                return;
+            }
+            if (password.length < 4) {
+                msg.className = 'msg error';
+                msg.textContent = '❌ Password must be at least 4 characters';
+                return;
+            }
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                msg.className = 'msg success';
+                msg.textContent = '✓ ' + data.message;
+                setTimeout(() => window.location.href = '/login', 1500);
+            } else {
+                msg.className = 'msg error';
+                msg.textContent = '❌ ' + data.error;
+            }
+        }
+    </script>
+</body>
+</html>

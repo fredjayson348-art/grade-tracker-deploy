@@ -1,0 +1,9 @@
+grades.db
+__pycache__/
+*.pyc
+.cache/
+.npm/
+.config/
+.local/
+*.zip
+*.log
