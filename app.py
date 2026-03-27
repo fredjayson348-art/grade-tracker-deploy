@@ -1,3 +1,4 @@
+# paste all at once
 # Grade Tracker v2 - Flask + SQLite + Auth
 # By Fred (fredjayson348-art)
 
@@ -8,13 +9,11 @@ import os
 
 app = Flask(__name__)
 app.secret_key = 'fred_secret_key_2025'
-import os
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(BASE_DIR, 'grades.db')
 
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
 def get_db():
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
@@ -118,48 +117,6 @@ def logout():
     session.clear()
     return jsonify({'message': 'Logged out!'})
 
-@app.route('/api/change-password', methods=['POST'])
-def change_password():
-    if 'user_id' not in session:
-        return jsonify({'error': 'Login required'}), 401
-    data = request.get_json()
-    old_password = data.get('old_password', '')
-    new_password = data.get('new_password', '')
-    if not old_password or not new_password:
-        return jsonify({'error': 'All fields required'}), 400
-    if len(new_password) < 4:
-        return jsonify({'error': 'Password too short'}), 400
-    conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    if not user or not check_password_hash(user['password'], old_password):
-        conn.close()
-        return jsonify({'error': 'Current password is incorrect'}), 401
-    conn.execute('UPDATE users SET password = ? WHERE id = ?', (generate_password_hash(new_password), session['user_id']))
-    conn.commit()
-    conn.close()
-    return jsonify({'message': 'Password updated successfully!'})
-
-
-@app.route('/api/change-password', methods=['POST'])
-def change_password():
-    if 'user_id' not in session:
-        return jsonify({'error': 'Login required'}), 401
-    data = request.get_json()
-    old_password = data.get('old_password', '')
-    new_password = data.get('new_password', '')
-    if not old_password or not new_password:
-        return jsonify({'error': 'All fields required'}), 400
-    if len(new_password) < 4:
-        return jsonify({'error': 'Password too short'}), 400
-    conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    if not user or not check_password_hash(user['password'], old_password):
-        conn.close()
-        return jsonify({'error': 'Current password is incorrect'}), 401
-    conn.execute('UPDATE users SET password = ? WHERE id = ?', (generate_password_hash(new_password), session['user_id']))
-    conn.commit()
-    conn.close()
-    return jsonify({'message': 'Password updated successfully!'})
 @app.route('/api/change-password', methods=['POST'])
 def change_password():
     if 'user_id' not in session:
