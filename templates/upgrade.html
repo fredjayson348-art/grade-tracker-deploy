@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upgrade - Grade Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0d0d0d; color: #fff; font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+    .card { background: #1a1a1a; border-radius: 16px; padding: 40px; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 0 30px rgba(0,255,204,0.1); }
+    h1 { color: #00ffcc; font-size: 28px; margin-bottom: 10px; }
+    p { color: #aaa; margin-bottom: 20px; line-height: 1.6; }
+    .price { font-size: 48px; color: #00ffcc; font-weight: bold; margin: 20px 0; }
+    .price span { font-size: 18px; color: #aaa; }
+    .features { text-align: left; margin: 20px 0; }
+    .features li { padding: 8px 0; border-bottom: 1px solid #333; list-style: none; color: #ccc; }
+    .features li::before { content: "✅ "; }
+    .btn { display: block; width: 100%; padding: 14px; background: #00ffcc; color: #000; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 20px; text-decoration: none; }
+    .btn:hover { opacity: 0.9; }
+    .note { font-size: 12px; color: #666; margin-top: 15px; }
+    .lock { font-size: 60px; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="lock">🔒</div>
+    <h1>Trial Expired</h1>
+    <p>Hey {{ username }}! Your 7-day free trial has ended. Your grades are safe — upgrade to keep full access!</p>
+    <div class="price">GH₵20 <span>/ month</span></div>
+    <ul class="features">
+      <li>Unlimited subjects</li>
+      <li>Grade charts & analytics</li>
+      <li>Change password</li>
+      <li>Your data stays safe forever</li>
+      <li>No ads</li>
+    </ul>
+    <a href="https://wa.me/233202499938?text=Hi!%20I%20want%20to%20upgrade%20my%20Grade%20Tracker%20account%20(%20{{ username }}%20)" class="btn" target="_blank">
+      Pay via WhatsApp 💬
+    </a>
+    <p class="note">After payment, your account will be upgraded within 24 hours.</p>
+  </div>
+</body>
+</html>

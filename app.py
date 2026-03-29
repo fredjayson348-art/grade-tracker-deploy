@@ -1,11 +1,11 @@
-# paste all at once
-# Grade Tracker v2 - Flask + SQLite + Auth
+# Grade Tracker v3 - Flask + SQLite + Auth + 7 Day Trial
 # By Fred (fredjayson348-art)
 
 from flask import Flask, jsonify, request, render_template, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.secret_key = 'fred_secret_key_2025'
@@ -25,7 +25,9 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL
+            password TEXT NOT NULL,
+            trial_start TEXT DEFAULT CURRENT_TIMESTAMP,
+            is_premium INTEGER DEFAULT 0
         )
     ''')
     conn.execute('''
@@ -39,6 +41,15 @@ def init_db():
             UNIQUE(user_id, subject)
         )
     ''')
+    # Add trial_start and is_premium to existing users if not there
+    try:
+        conn.execute('ALTER TABLE users ADD COLUMN trial_start TEXT DEFAULT CURRENT_TIMESTAMP')
+    except:
+        pass
+    try:
+        conn.execute('ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0')
+    except:
+        pass
     conn.commit()
     conn.close()
 
@@ -56,6 +67,14 @@ def get_gpa(score):
     elif score >= 50: return 1.0
     else: return 0.0
 
+def is_trial_active(user):
+    if user['is_premium']:
+        return True
+    if not user['trial_start']:
+        return True
+    trial_start = datetime.fromisoformat(str(user['trial_start'])[:19])
+    return datetime.now() < trial_start + timedelta(days=7)
+
 def login_required(f):
     from functools import wraps
     @wraps(f)
@@ -65,11 +84,39 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def trial_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Login required'}), 401
+        conn = get_db()
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        conn.close()
+        if not is_trial_active(user):
+            return jsonify({'error': 'trial_expired'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
 @app.route('/')
 def home():
     if 'user_id' not in session:
         return redirect(url_for('login_page'))
-    return render_template('index.html', username=session['username'])
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    conn.close()
+    if not is_trial_active(user):
+        return redirect(url_for('upgrade_page'))
+    days_left = 7
+    if not user['is_premium'] and user['trial_start']:
+        trial_start = datetime.fromisoformat(str(user['trial_start'])[:19])
+        delta = (trial_start + timedelta(days=7)) - datetime.now()
+        days_left = max(0, delta.days)
+    return render_template('index.html', username=session['username'], days_left=days_left, is_premium=user['is_premium'])
+
+@app.route('/upgrade')
+def upgrade_page():
+    return render_template('upgrade.html', username=session.get('username', ''))
 
 @app.route('/login')
 def login_page():
@@ -109,6 +156,8 @@ def login():
     if user and check_password_hash(user['password'], password):
         session['user_id'] = user['id']
         session['username'] = user['username']
+        if not is_trial_active(user):
+            return jsonify({'trial_expired': True})
         return jsonify({'message': 'Login successful!'})
     return jsonify({'error': 'Invalid username or password'}), 401
 
@@ -140,7 +189,7 @@ def change_password():
     return jsonify({'message': 'Password updated successfully!'})
 
 @app.route('/grades', methods=['GET'])
-@login_required
+@trial_required
 def get_grades():
     conn = get_db()
     rows = conn.execute('SELECT * FROM grades WHERE user_id = ? ORDER BY score DESC', (session['user_id'],)).fetchall()
@@ -156,7 +205,7 @@ def get_grades():
     return jsonify(result)
 
 @app.route('/grades', methods=['POST'])
-@login_required
+@trial_required
 def add_grade():
     data = request.get_json()
     subject = data.get('subject')
@@ -175,7 +224,7 @@ def add_grade():
         return jsonify({'error': 'Subject already exists!'}), 400
 
 @app.route('/grades/<subject>', methods=['DELETE'])
-@login_required
+@trial_required
 def delete_grade(subject):
     conn = get_db()
     conn.execute('DELETE FROM grades WHERE subject = ? AND user_id = ?', (subject, session['user_id']))
@@ -184,7 +233,7 @@ def delete_grade(subject):
     return jsonify({'message': 'Deleted!', 'subject': subject})
 
 @app.route('/grades/<subject>', methods=['PUT'])
-@login_required
+@trial_required
 def update_grade(subject):
     data = request.get_json()
     score = data.get('score')
@@ -197,7 +246,7 @@ def update_grade(subject):
     return jsonify({'message': 'Updated!', 'subject': subject, 'score': score})
 
 @app.route('/report', methods=['GET'])
-@login_required
+@trial_required
 def report():
     conn = get_db()
     rows = conn.execute('SELECT score FROM grades WHERE user_id = ?', (session['user_id'],)).fetchall()
@@ -218,4 +267,3 @@ init_db()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-
