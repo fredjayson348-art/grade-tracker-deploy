@@ -20,6 +20,9 @@
         .tab-btn.active{background:var(--accent);color:var(--bg);border-color:var(--accent)}
         .btn-logout{background:transparent;border:1px solid var(--red);color:var(--red);padding:5px 10px;border-radius:6px;cursor:pointer;font-family:'Syne',sans-serif;font-size:12px;font-weight:600;transition:all 0.2s;width:auto;margin:0;white-space:nowrap}
         .btn-logout:hover{background:var(--red);color:white}
+        .trial-banner{background:linear-gradient(90deg,rgba(245,158,11,0.15),rgba(249,115,22,0.15));border-bottom:1px solid rgba(245,158,11,0.3);padding:8px 16px;text-align:center;font-family:'Space Mono',monospace;font-size:12px;color:#f59e0b;position:relative;z-index:99}
+        .trial-banner a{color:#f97316;font-weight:700;text-decoration:underline;margin-left:8px}
+        .premium-banner{background:linear-gradient(90deg,rgba(16,185,129,0.15),rgba(0,212,255,0.15));border-bottom:1px solid rgba(16,185,129,0.3);padding:8px 16px;text-align:center;font-family:'Space Mono',monospace;font-size:12px;color:#10b981}
         .page{display:none;padding:20px 16px;max-width:680px;margin:0 auto;position:relative;z-index:1}
         .page.active{display:block;animation:fadeUp 0.3s ease}
         @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
@@ -78,6 +81,14 @@
     </div>
 </nav>
 
+{% if is_premium %}
+<div class="premium-banner">⭐ Premium Account — Thank you for supporting Grade Tracker!</div>
+{% elif days_left <= 2 %}
+<div class="trial-banner">🔥 Trial expires in <strong>{{ days_left }} day(s)</strong>! <a href="/upgrade">Upgrade now →</a></div>
+{% else %}
+<div class="trial-banner">⏳ Free trial: <strong>{{ days_left }} day(s)</strong> remaining. <a href="/upgrade">Upgrade →</a></div>
+{% endif %}
+
 <div class="page active" id="page-dashboard">
     <div class="stats-row">
         <div class="stat-box"><div class="stat-value" id="stat-avg">—</div><div class="stat-label">Average</div></div>
@@ -116,15 +127,15 @@
         <div class="input-group"><label class="input-label">New Password</label><input type="password" id="new-password" placeholder="New password"/></div>
         <div class="input-group"><label class="input-label">Confirm New Password</label><input type="password" id="confirm-password" placeholder="Confirm new password"/></div>
         <button class="btn btn-primary" onclick="changePassword()">Update Password</button>
-        <div id="profile-msg" class="msg"></div>
         <hr class="divider">
         <button class="btn btn-danger" onclick="logout()">Sign Out</button>
+        <div id="profile-msg" class="msg"></div>
     </div>
 </div>
 
 <script>
+    const username='{{ username }}';
     let chartInstance=null;
-    const username=document.getElementById('nav-username').textContent;
     document.getElementById('profile-avatar').textContent=username.charAt(0).toUpperCase();
 
     function showPage(name,btn){
@@ -147,6 +158,7 @@
     async function loadDashboard(){
         const[gr,rr]=await Promise.all([fetch('/grades'),fetch('/report')]);
         if(gr.status===401){window.location.href='/login';return}
+        if(gr.status===403){window.location.href='/upgrade';return}
         const grades=await gr.json();
         const report=await rr.json();
         if(!report.error){
@@ -165,6 +177,7 @@
     async function loadGradesList(){
         const res=await fetch('/grades');
         if(res.status===401){window.location.href='/login';return}
+        if(res.status===403){window.location.href='/upgrade';return}
         const data=await res.json();
         const list=document.getElementById('grades-list');
         const entries=Object.entries(data);
