@@ -339,3 +339,7 @@ def admin_delete(user_id):
     cur.close()
     conn.close()
     return redirect(url_for('admin_dashboard'))
+
+@app.route('/ping')
+def ping():
+    return 'OK', 200
