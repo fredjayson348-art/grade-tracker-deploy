@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0d0d0d;color:#fff;font-family:Arial,sans-serif;padding:20px}
+    h1{color:#00ffcc;margin-bottom:5px}
+    .subtitle{color:#888;font-size:13px;margin-bottom:20px}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+    .stat{background:#1a1a1a;padding:15px;border-radius:10px;text-align:center}
+    .stat-num{font-size:28px;font-weight:bold;color:#00ffcc}
+    .stat-label{font-size:11px;color:#888;margin-top:4px}
+    table{width:100%;border-collapse:collapse;background:#1a1a1a;border-radius:10px;overflow:hidden}
+    th{background:#0d0d0d;padding:10px;text-align:left;font-size:12px;color:#888;text-transform:uppercase}
+    td{padding:10px;border-bottom:1px solid #222;font-size:13px}
+    .badge{padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold}
+    .premium{background:rgba(0,255,204,0.15);color:#00ffcc}
+    .trial{background:rgba(245,158,11,0.15);color:#f59e0b}
+    .expired{background:rgba(239,68,68,0.15);color:#ef4444}
+    .btn{padding:5px 10px;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:bold;text-decoration:none;display:inline-block}
+    .btn-green{background:#00ffcc;color:#000}
+    .btn-gray{background:#444;color:#fff}
+    .btn-red{background:#ef4444;color:#fff}
+    .logout{float:right;color:#ef4444;text-decoration:none;font-size:13px}
+  </style>
+</head>
+<body>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+    <h1>🛡️ Admin Dashboard</h1>
+    <a href="/admin/logout" class="logout">Logout</a>
+  </div>
+  <p class="subtitle">Grade Tracker — User Management</p>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num">{{ users|length }}</div>
+      <div class="stat-label">Total Users</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" style="color:#00ffcc">{{ users|selectattr('is_premium')|list|length }}</div>
+      <div class="stat-label">Premium</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" style="color:#f59e0b">{{ users|rejectattr('is_premium')|list|length }}</div>
+      <div class="stat-label">Free/Trial</div>
+    </div>
+  </div>
+
+  <table>
+    <tr>
+      <th>User</th>
+      <th>Status</th>
+      <th>Trial Start</th>
+      <th>Actions</th>
+    </tr>
+    {% for user in users %}
+    <tr>
+      <td><strong>{{ user.username }}</strong><br><span style="color:#888;font-size:11px">ID: {{ user.id }}</span></td>
+      <td>
+        {% if user.is_premium %}
+          <span class="badge premium">⭐ Premium</span>
+        {% else %}
+          <span class="badge trial">⏳ Trial</span>
+        {% endif %}
+      </td>
+      <td style="font-size:11px;color:#888">{{ user.trial_start|string|truncate(10, True, '') }}</td>
+      <td>
+        {% if user.is_premium %}
+          <a href="/admin/downgrade/{{ user.id }}" class="btn btn-gray">Downgrade</a>
+        {% else %}
+          <a href="/admin/upgrade/{{ user.id }}" class="btn btn-green">Upgrade ⭐</a>
+        {% endif %}
+        <a href="/admin/delete/{{ user.id }}" class="btn btn-red" onclick="return confirm('Delete {{ user.username }}?')">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

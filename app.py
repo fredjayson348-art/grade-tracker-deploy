@@ -267,3 +267,75 @@ init_db()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
+# ===== ADMIN DASHBOARD =====
+ADMIN_PASSWORD = 'fredadmin2025'
+
+def admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('is_admin'):
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/admin')
+@admin_required
+def admin_dashboard():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT id, username, trial_start, is_premium FROM users ORDER BY id DESC')
+    users = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template('admin.html', users=users)
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        password = request.form.get('password')
+        if password == ADMIN_PASSWORD:
+            session['is_admin'] = True
+            return redirect(url_for('admin_dashboard'))
+        return render_template('admin_login.html', error='Wrong password')
+    return render_template('admin_login.html', error=None)
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('is_admin', None)
+    return redirect(url_for('admin_login'))
+
+@app.route('/admin/upgrade/<int:user_id>')
+@admin_required
+def admin_upgrade(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('UPDATE users SET is_premium = 1 WHERE id = %s', (user_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/downgrade/<int:user_id>')
+@admin_required
+def admin_downgrade(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('UPDATE users SET is_premium = 0 WHERE id = %s', (user_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/delete/<int:user_id>')
+@admin_required
+def admin_delete(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('DELETE FROM grades WHERE user_id = %s', (user_id,))
+    cur.execute('DELETE FROM users WHERE id = %s', (user_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect(url_for('admin_dashboard'))

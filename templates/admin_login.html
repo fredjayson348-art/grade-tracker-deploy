@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0d0d0d;color:#fff;font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh}
+    .card{background:#1a1a1a;padding:30px;border-radius:12px;width:300px;text-align:center;box-shadow:0 0 20px rgba(0,255,204,0.1)}
+    h1{color:#00ffcc;margin-bottom:20px;font-size:20px}
+    input{width:100%;padding:10px;margin:10px 0;border-radius:6px;border:1px solid #333;background:#2a2a2a;color:#fff;font-size:14px}
+    button{width:100%;padding:12px;background:#00ffcc;color:#000;border:none;border-radius:6px;font-weight:bold;cursor:pointer;margin-top:8px}
+    .error{color:#ff4444;margin-top:10px;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔐 Admin Login</h1>
+    <form method="POST">
+      <input type="password" name="password" placeholder="Admin password" required>
+      <button type="submit">Login</button>
+    </form>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  </div>
+</body>
+</html>
