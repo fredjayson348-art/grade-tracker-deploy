@@ -1,38 +1,37 @@
-# Grade Tracker v3 - Flask + SQLite + Auth + 7 Day Trial
+# Grade Tracker v3 - Flask + PostgreSQL + Auth + 7 Day Trial
 # By Fred (fredjayson348-art)
 
 from flask import Flask, jsonify, request, render_template, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import os
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.secret_key = 'fred_secret_key_2025'
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB = os.path.join(BASE_DIR, 'grades.db')
-
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db():
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
     return conn
 
 def init_db():
     conn = get_db()
-    conn.execute('''
+    cur = conn.cursor()
+    cur.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             username TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL,
-            trial_start TEXT DEFAULT CURRENT_TIMESTAMP,
+            trial_start TIMESTAMP DEFAULT NOW(),
             is_premium INTEGER DEFAULT 0
         )
     ''')
-    conn.execute('''
+    cur.execute('''
         CREATE TABLE IF NOT EXISTS grades (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
             subject TEXT NOT NULL,
             score REAL NOT NULL,
@@ -41,16 +40,8 @@ def init_db():
             UNIQUE(user_id, subject)
         )
     ''')
-    # Add trial_start and is_premium to existing users if not there
-    try:
-        conn.execute('ALTER TABLE users ADD COLUMN trial_start TEXT DEFAULT CURRENT_TIMESTAMP')
-    except:
-        pass
-    try:
-        conn.execute('ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0')
-    except:
-        pass
     conn.commit()
+    cur.close()
     conn.close()
 
 def get_letter(score):
@@ -72,8 +63,21 @@ def is_trial_active(user):
         return True
     if not user['trial_start']:
         return True
-    trial_start = datetime.fromisoformat(str(user['trial_start'])[:19])
+    trial_start = user['trial_start']
+    if isinstance(trial_start, str):
+        trial_start = datetime.fromisoformat(trial_start[:19])
     return datetime.now() < trial_start + timedelta(days=7)
+
+def get_days_left(user):
+    if user['is_premium']:
+        return 999
+    if not user['trial_start']:
+        return 7
+    trial_start = user['trial_start']
+    if isinstance(trial_start, str):
+        trial_start = datetime.fromisoformat(trial_start[:19])
+    delta = (trial_start + timedelta(days=7)) - datetime.now()
+    return max(0, delta.days)
 
 def login_required(f):
     from functools import wraps
@@ -91,10 +95,24 @@ def trial_required(f):
         if 'user_id' not in session:
             return jsonify({'error': 'Login required'}), 401
         conn = get_db()
-        user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM users WHERE id = %s', (session['user_id'],))
+        user = cur.fetchone()
+        cur.close()
         conn.close()
         if not is_trial_active(user):
             return jsonify({'error': 'trial_expired'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+ADMIN_PASSWORD = 'fredadmin2025'
+
+def admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('is_admin'):
+            return redirect(url_for('admin_login'))
         return f(*args, **kwargs)
     return decorated
 
@@ -103,15 +121,14 @@ def home():
     if 'user_id' not in session:
         return redirect(url_for('login_page'))
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM users WHERE id = %s', (session['user_id'],))
+    user = cur.fetchone()
+    cur.close()
     conn.close()
     if not is_trial_active(user):
         return redirect(url_for('upgrade_page'))
-    days_left = 7
-    if not user['is_premium'] and user['trial_start']:
-        trial_start = datetime.fromisoformat(str(user['trial_start'])[:19])
-        delta = (trial_start + timedelta(days=7)) - datetime.now()
-        days_left = max(0, delta.days)
+    days_left = get_days_left(user)
     return render_template('index.html', username=session['username'], days_left=days_left, is_premium=user['is_premium'])
 
 @app.route('/upgrade')
@@ -138,11 +155,13 @@ def register():
     hashed = generate_password_hash(password)
     try:
         conn = get_db()
-        conn.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed))
+        cur = conn.cursor()
+        cur.execute('INSERT INTO users (username, password) VALUES (%s, %s)', (username, hashed))
         conn.commit()
+        cur.close()
         conn.close()
         return jsonify({'message': 'Account created! Please login.'})
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         return jsonify({'error': 'Username already taken'}), 400
 
 @app.route('/api/login', methods=['POST'])
@@ -151,7 +170,10 @@ def login():
     username = data.get('username', '').strip()
     password = data.get('password', '')
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM users WHERE username = %s', (username,))
+    user = cur.fetchone()
+    cur.close()
     conn.close()
     if user and check_password_hash(user['password'], password):
         session['user_id'] = user['id']
@@ -178,13 +200,17 @@ def change_password():
     if len(new_password) < 4:
         return jsonify({'error': 'Password too short'}), 400
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM users WHERE id = %s', (session['user_id'],))
+    user = cur.fetchone()
     if not user or not check_password_hash(user['password'], old_password):
+        cur.close()
         conn.close()
         return jsonify({'error': 'Current password is incorrect'}), 401
-    conn.execute('UPDATE users SET password = ? WHERE id = ?',
+    cur.execute('UPDATE users SET password = %s WHERE id = %s',
         (generate_password_hash(new_password), session['user_id']))
     conn.commit()
+    cur.close()
     conn.close()
     return jsonify({'message': 'Password updated successfully!'})
 
@@ -192,7 +218,10 @@ def change_password():
 @trial_required
 def get_grades():
     conn = get_db()
-    rows = conn.execute('SELECT * FROM grades WHERE user_id = ? ORDER BY score DESC', (session['user_id'],)).fetchall()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM grades WHERE user_id = %s ORDER BY score DESC', (session['user_id'],))
+    rows = cur.fetchall()
+    cur.close()
     conn.close()
     result = {}
     for row in rows:
@@ -216,19 +245,24 @@ def add_grade():
         return jsonify({'error': 'Score must be between 0 and 100'}), 400
     try:
         conn = get_db()
-        conn.execute('INSERT INTO grades (user_id, subject, score) VALUES (?, ?, ?)', (session['user_id'], subject, score))
+        cur = conn.cursor()
+        cur.execute('INSERT INTO grades (user_id, subject, score) VALUES (%s, %s, %s)',
+            (session['user_id'], subject, score))
         conn.commit()
+        cur.close()
         conn.close()
         return jsonify({'message': 'Added!', 'subject': subject, 'score': score})
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         return jsonify({'error': 'Subject already exists!'}), 400
 
 @app.route('/grades/<subject>', methods=['DELETE'])
 @trial_required
 def delete_grade(subject):
     conn = get_db()
-    conn.execute('DELETE FROM grades WHERE subject = ? AND user_id = ?', (subject, session['user_id']))
+    cur = conn.cursor()
+    cur.execute('DELETE FROM grades WHERE subject = %s AND user_id = %s', (subject, session['user_id']))
     conn.commit()
+    cur.close()
     conn.close()
     return jsonify({'message': 'Deleted!', 'subject': subject})
 
@@ -240,8 +274,11 @@ def update_grade(subject):
     if score is None or score < 0 or score > 100:
         return jsonify({'error': 'Valid score required'}), 400
     conn = get_db()
-    conn.execute('UPDATE grades SET score = ? WHERE subject = ? AND user_id = ?', (score, subject, session['user_id']))
+    cur = conn.cursor()
+    cur.execute('UPDATE grades SET score = %s WHERE subject = %s AND user_id = %s',
+        (score, subject, session['user_id']))
     conn.commit()
+    cur.close()
     conn.close()
     return jsonify({'message': 'Updated!', 'subject': subject, 'score': score})
 
@@ -249,7 +286,10 @@ def update_grade(subject):
 @trial_required
 def report():
     conn = get_db()
-    rows = conn.execute('SELECT score FROM grades WHERE user_id = ?', (session['user_id'],)).fetchall()
+    cur = conn.cursor()
+    cur.execute('SELECT score FROM grades WHERE user_id = %s', (session['user_id'],))
+    rows = cur.fetchall()
+    cur.close()
     conn.close()
     if not rows:
         return jsonify({'error': 'No grades yet'})
@@ -262,23 +302,6 @@ def report():
         'gpa': round(total_gpa / len(scores), 2),
         'overall_grade': get_letter(average)
     })
-
-init_db()
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
-
-# ===== ADMIN DASHBOARD =====
-ADMIN_PASSWORD = 'fredadmin2025'
-
-def admin_required(f):
-    from functools import wraps
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('is_admin'):
-            return redirect(url_for('admin_login'))
-        return f(*args, **kwargs)
-    return decorated
 
 @app.route('/admin')
 @admin_required
@@ -343,3 +366,8 @@ def admin_delete(user_id):
 @app.route('/ping')
 def ping():
     return 'OK', 200
+
+init_db()
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
