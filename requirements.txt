@@ -2,3 +2,5 @@ flask
 gunicorn
 werkzeug
 psycopg2-binary
+flask-dance
+flask-dance
