@@ -1,71 +1,102 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - Grade Tracker</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-        .card { background: #1e293b; border-radius: 10px; padding: 30px; width: 100%; max-width: 400px; }
-        h1 { text-align: center; color: #38bdf8; margin-bottom: 8px; }
-        p.sub { text-align: center; color: #94a3b8; margin-bottom: 20px; font-size: 14px; }
-        input { width: 100%; padding: 12px; margin: 6px 0; border-radius: 6px; border: none; background: #334155; color: white; font-size: 15px; }
-        button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 15px; background: #22c55e; color: #0f172a; }
-        .link { text-align: center; margin-top: 15px; font-size: 14px; color: #94a3b8; }
-        .link a { color: #38bdf8; text-decoration: none; }
-        .msg { padding: 8px; border-radius: 6px; margin-top: 10px; text-align: center; display: none; font-size: 14px; }
-        .msg.success { background: #166534; color: #86efac; display: block; }
-        .msg.error { background: #7f1d1d; color: #fca5a5; display: block; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - Grade Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Syne',sans-serif;background:#080c14;color:#e2e8f0;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px}
+    .card{background:#111827;border:1px solid #1e2d45;border-radius:16px;padding:32px;width:100%;max-width:380px}
+    .logo{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:#00d4ff;text-align:center;margin-bottom:8px}
+    .logo span{color:#e2e8f0}
+    .subtitle{text-align:center;color:#64748b;font-size:13px;margin-bottom:24px;font-family:'Space Mono',monospace}
+    .input-group{margin-bottom:14px;position:relative}
+    label{font-size:11px;color:#64748b;font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;display:block}
+    input{width:100%;padding:11px 40px 11px 13px;border-radius:8px;border:1px solid #1e2d45;background:#0d1424;color:#e2e8f0;font-family:'Syne',sans-serif;font-size:15px;outline:none;transition:border-color 0.2s}
+    input:focus{border-color:#00d4ff}
+    .eye-btn{position:absolute;right:12px;bottom:11px;background:none;border:none;cursor:pointer;color:#64748b;font-size:18px;padding:0;width:auto;margin:0}
+    .eye-btn:hover{color:#00d4ff}
+    .btn{width:100%;padding:12px;border:none;border-radius:8px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;transition:all 0.2s;margin-top:4px}
+    .btn-primary{background:#00d4ff;color:#080c14}
+    .btn-primary:hover{filter:brightness(1.1)}
+    .msg{padding:10px;border-radius:8px;margin-top:10px;font-size:13px;display:none;font-family:'Space Mono',monospace}
+    .msg.error{background:rgba(239,68,68,0.15);border:1px solid #ef4444;color:#ef4444;display:block}
+    .msg.success{background:rgba(16,185,129,0.15);border:1px solid #10b981;color:#10b981;display:block}
+    .link{text-align:center;margin-top:16px;font-size:13px;color:#64748b}
+    .link a{color:#00d4ff;text-decoration:none}
+  </style>
 </head>
 <body>
-    <div class="card">
-        <h1>🎓 Grade Tracker</h1>
-        <p class="sub">Create a new account</p>
-        <input type="text" id="username" placeholder="Choose a username" />
-        <input type="password" id="password" placeholder="Choose a password" />
-        <input type="password" id="confirm" placeholder="Confirm password" />
-        <button onclick="register()">Create Account</button>
-        <div id="msg" class="msg"></div>
-        <div class="link">Already have an account? <a href="/login">Login here</a></div>
+  <div class="card">
+    <div class="logo">grade<span>.</span>track</div>
+    <div class="subtitle">Create your account</div>
+    <div class="input-group">
+      <label>Username</label>
+      <input type="text" id="username" placeholder="Choose a username">
     </div>
-    <script>
-        async function register() {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            const confirm = document.getElementById('confirm').value;
-            const msg = document.getElementById('msg');
-            if (!username || !password || !confirm) {
-                msg.className = 'msg error';
-                msg.textContent = '❌ Please fill in all fields';
-                return;
-            }
-            if (password !== confirm) {
-                msg.className = 'msg error';
-                msg.textContent = '❌ Passwords do not match';
-                return;
-            }
-            if (password.length < 4) {
-                msg.className = 'msg error';
-                msg.textContent = '❌ Password must be at least 4 characters';
-                return;
-            }
-            const res = await fetch('/api/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                msg.className = 'msg success';
-                msg.textContent = '✓ ' + data.message;
-                setTimeout(() => window.location.href = '/login', 1500);
-            } else {
-                msg.className = 'msg error';
-                msg.textContent = '❌ ' + data.error;
-            }
-        }
-    </script>
+    <div class="input-group">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="Choose a password">
+      <button class="eye-btn" onclick="togglePassword('password', this)" type="button">👁️</button>
+    </div>
+    <div class="input-group">
+      <label>Confirm Password</label>
+      <input type="password" id="confirm" placeholder="Confirm your password">
+      <button class="eye-btn" onclick="togglePassword('confirm', this)" type="button">👁️</button>
+    </div>
+    <button class="btn btn-primary" onclick="register()">Create Account</button>
+    <div id="msg" class="msg"></div>
+    <div class="link">Already have an account? <a href="/login">Login</a></div>
+  </div>
+  <script>
+    function togglePassword(id, btn) {
+      const input = document.getElementById(id);
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+      } else {
+        input.type = 'password';
+        btn.textContent = '👁️';
+      }
+    }
+
+    async function register() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const confirm = document.getElementById('confirm').value;
+      const msg = document.getElementById('msg');
+      if (!username || !password || !confirm) {
+        msg.className = 'msg error';
+        msg.textContent = 'Fill in all fields';
+        return;
+      }
+      if (password !== confirm) {
+        msg.className = 'msg error';
+        msg.textContent = 'Passwords do not match!';
+        return;
+      }
+      if (password.length < 4) {
+        msg.className = 'msg error';
+        msg.textContent = 'Password must be at least 4 characters';
+        return;
+      }
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password})
+      });
+      const data = await res.json();
+      if (res.ok) {
+        msg.className = 'msg success';
+        msg.textContent = data.message;
+        setTimeout(() => window.location.href = '/login', 1500);
+      } else {
+        msg.className = 'msg error';
+        msg.textContent = data.error;
+      }
+    }
+  </script>
 </body>
 </html>

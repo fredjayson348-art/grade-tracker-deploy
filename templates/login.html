@@ -12,10 +12,12 @@
     .logo{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:#00d4ff;text-align:center;margin-bottom:8px}
     .logo span{color:#e2e8f0}
     .subtitle{text-align:center;color:#64748b;font-size:13px;margin-bottom:24px;font-family:'Space Mono',monospace}
-    .input-group{margin-bottom:14px}
+    .input-group{margin-bottom:14px;position:relative}
     label{font-size:11px;color:#64748b;font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;display:block}
-    input{width:100%;padding:11px 13px;border-radius:8px;border:1px solid #1e2d45;background:#0d1424;color:#e2e8f0;font-family:'Syne',sans-serif;font-size:15px;outline:none;transition:border-color 0.2s}
+    input{width:100%;padding:11px 40px 11px 13px;border-radius:8px;border:1px solid #1e2d45;background:#0d1424;color:#e2e8f0;font-family:'Syne',sans-serif;font-size:15px;outline:none;transition:border-color 0.2s}
     input:focus{border-color:#00d4ff}
+    .eye-btn{position:absolute;right:12px;bottom:11px;background:none;border:none;cursor:pointer;color:#64748b;font-size:18px;padding:0;width:auto;margin:0}
+    .eye-btn:hover{color:#00d4ff}
     .btn{width:100%;padding:12px;border:none;border-radius:8px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;transition:all 0.2s;margin-top:4px}
     .btn-primary{background:#00d4ff;color:#080c14}
     .btn-primary:hover{filter:brightness(1.1)}
@@ -29,7 +31,6 @@
     .msg.success{background:rgba(16,185,129,0.15);border:1px solid #10b981;color:#10b981;display:block}
     .link{text-align:center;margin-top:16px;font-size:13px;color:#64748b}
     .link a{color:#00d4ff;text-decoration:none}
-    .google-icon{width:18px;height:18px}
   </style>
 </head>
 <body>
@@ -43,13 +44,14 @@
     <div class="input-group">
       <label>Password</label>
       <input type="password" id="password" placeholder="Enter password">
+      <button class="eye-btn" onclick="togglePassword('password', this)" type="button">👁️</button>
     </div>
     <button class="btn btn-primary" onclick="login()">Login</button>
     <div id="msg" class="msg"></div>
     <div class="divider"><span>or continue with</span></div>
     <a href="/auth/google" style="text-decoration:none">
       <button class="btn btn-google">
-        <svg class="google-icon" viewBox="0 0 24 24">
+        <svg width="18" height="18" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -61,6 +63,17 @@
     <div class="link">Don't have an account? <a href="/register">Register</a></div>
   </div>
   <script>
+    function togglePassword(id, btn) {
+      const input = document.getElementById(id);
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+      } else {
+        input.type = 'password';
+        btn.textContent = '👁️';
+      }
+    }
+
     async function login() {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
