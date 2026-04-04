@@ -1,15 +1,27 @@
-# Grade Tracker v3 - Flask + PostgreSQL + Auth + 7 Day Trial
+# Grade Tracker v3 - Flask + PostgreSQL + Auth + Google Login + 7 Day Trial
 # By Fred (fredjayson348-art)
 
 from flask import Flask, jsonify, request, render_template, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_dance.contrib.google import make_google_blueprint, google
 import psycopg2
 import psycopg2.extras
 import os
 from datetime import datetime, timedelta
 
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'
+
 app = Flask(__name__)
 app.secret_key = 'fred_secret_key_2025'
+
+# Google OAuth setup
+google_bp = make_google_blueprint(
+    client_id=os.environ.get('GOOGLE_CLIENT_ID'),
+    client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
+    scope=['profile', 'email'],
+    redirect_url='/auth/google/callback'
+)
+app.register_blueprint(google_bp, url_prefix='/auth')
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
@@ -24,7 +36,9 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
             username TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL,
+            password TEXT,
+            google_id TEXT,
+            email TEXT,
             trial_start TIMESTAMP DEFAULT NOW(),
             is_premium INTEGER DEFAULT 0
         )
@@ -40,6 +54,14 @@ def init_db():
             UNIQUE(user_id, subject)
         )
     ''')
+    try:
+        cur.execute('ALTER TABLE users ADD COLUMN google_id TEXT')
+    except:
+        conn.rollback()
+    try:
+        cur.execute('ALTER TABLE users ADD COLUMN email TEXT')
+    except:
+        conn.rollback()
     conn.commit()
     cur.close()
     conn.close()
@@ -131,6 +153,46 @@ def home():
     days_left = get_days_left(user)
     return render_template('index.html', username=session['username'], days_left=days_left, is_premium=user['is_premium'])
 
+@app.route('/auth/google/callback')
+def google_callback():
+    if not google.authorized:
+        return redirect(url_for('google.login'))
+    resp = google.get('/oauth2/v2/userinfo')
+    if not resp.ok:
+        return redirect(url_for('login_page'))
+    info = resp.json()
+    google_id = info['id']
+    email = info.get('email', '')
+    name = info.get('name', email.split('@')[0])
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM users WHERE google_id = %s', (google_id,))
+    user = cur.fetchone()
+    if not user:
+        cur.execute('SELECT * FROM users WHERE email = %s', (email,))
+        user = cur.fetchone()
+    if not user:
+        try:
+            cur.execute('INSERT INTO users (username, google_id, email) VALUES (%s, %s, %s)',
+                (name, google_id, email))
+            conn.commit()
+            cur.execute('SELECT * FROM users WHERE google_id = %s', (google_id,))
+            user = cur.fetchone()
+        except psycopg2.IntegrityError:
+            conn.rollback()
+            cur.execute('SELECT * FROM users WHERE email = %s', (email,))
+            user = cur.fetchone()
+    else:
+        cur.execute('UPDATE users SET google_id = %s WHERE id = %s', (google_id, user['id']))
+        conn.commit()
+    session['user_id'] = user['id']
+    session['username'] = user['username']
+    cur.close()
+    conn.close()
+    if not is_trial_active(user):
+        return redirect(url_for('upgrade_page'))
+    return redirect(url_for('home'))
+
 @app.route('/upgrade')
 def upgrade_page():
     return render_template('upgrade.html', username=session.get('username', ''))
@@ -175,7 +237,7 @@ def login():
     user = cur.fetchone()
     cur.close()
     conn.close()
-    if user and check_password_hash(user['password'], password):
+    if user and user['password'] and check_password_hash(user['password'], password):
         session['user_id'] = user['id']
         session['username'] = user['username']
         if not is_trial_active(user):
@@ -203,7 +265,7 @@ def change_password():
     cur = conn.cursor()
     cur.execute('SELECT * FROM users WHERE id = %s', (session['user_id'],))
     user = cur.fetchone()
-    if not user or not check_password_hash(user['password'], old_password):
+    if not user or not user['password'] or not check_password_hash(user['password'], old_password):
         cur.close()
         conn.close()
         return jsonify({'error': 'Current password is incorrect'}), 401
@@ -308,7 +370,7 @@ def report():
 def admin_dashboard():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute('SELECT id, username, trial_start, is_premium FROM users ORDER BY id DESC')
+    cur.execute('SELECT id, username, email, trial_start, is_premium FROM users ORDER BY id DESC')
     users = cur.fetchall()
     cur.close()
     conn.close()
