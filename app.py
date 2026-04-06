@@ -433,3 +433,82 @@ init_db()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
+@app.route('/report/pdf')
+def download_pdf():
+    if 'user_id' not in session:
+        return redirect(url_for('login_page'))
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM users WHERE id = %s', (session['user_id'],))
+    user = cur.fetchone()
+    cur.execute('SELECT * FROM grades WHERE user_id = %s ORDER BY score DESC', (session['user_id'],))
+    grades = cur.fetchall()
+    cur.close()
+    conn.close()
+    if not grades:
+        return jsonify({'error': 'No grades to export'}), 400
+    from fpdf import FPDF
+    scores = [g['score'] for g in grades]
+    average = sum(scores) / len(scores)
+    avg_gpa = sum(get_gpa(s) for s in scores) / len(scores)
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_fill_color(0, 212, 255)
+    pdf.rect(0, 0, 210, 35, 'F')
+    pdf.set_text_color(8, 12, 20)
+    pdf.set_font('Helvetica', 'B', 22)
+    pdf.set_xy(0, 8)
+    pdf.cell(210, 10, 'grade.track', align='C')
+    pdf.set_font('Helvetica', '', 11)
+    pdf.set_xy(0, 20)
+    pdf.cell(210, 10, f'Grade Report - {user["username"]}', align='C')
+    pdf.set_text_color(100, 116, 139)
+    pdf.set_font('Helvetica', '', 9)
+    pdf.set_xy(0, 28)
+    pdf.cell(210, 8, f'Generated: {datetime.now().strftime("%B %d, %Y")}', align='C')
+    pdf.set_text_color(0, 0, 0)
+    box_data = [('AVERAGE', f'{round(average, 1)}%'), ('GPA', str(round(avg_gpa, 2))), ('SUBJECTS', str(len(grades))), ('OVERALL', get_letter(average))]
+    colors = [(0,212,255), (124,58,237), (16,185,129), (245,158,11)]
+    for i, (label, value) in enumerate(box_data):
+        x = 15 + i * 47
+        r, g, b = colors[i]
+        pdf.set_fill_color(r, g, b)
+        pdf.rect(x, 45, 42, 25, 'F')
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.set_xy(x, 50)
+        pdf.cell(42, 8, value, align='C')
+        pdf.set_font('Helvetica', '', 8)
+        pdf.set_xy(x, 60)
+        pdf.cell(42, 6, label, align='C')
+    pdf.set_y(80)
+    pdf.set_fill_color(17, 24, 39)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Helvetica', 'B', 10)
+    headers = ['Subject', 'Score', 'Grade', 'GPA', 'Date']
+    widths = [75, 25, 20, 20, 40]
+    for header, w in zip(headers, widths):
+        pdf.cell(w, 10, header, border=1, fill=True, align='C')
+    pdf.ln()
+    pdf.set_font('Helvetica', '', 9)
+    for i, g in enumerate(grades):
+        if i % 2 == 0:
+            pdf.set_fill_color(248, 249, 250)
+        else:
+            pdf.set_fill_color(255, 255, 255)
+        pdf.set_text_color(0, 0, 0)
+        row = [g['subject'], f"{g['score']}/100", get_letter(g['score']), str(get_gpa(g['score'])), str(g['date'])]
+        for val, w in zip(row, widths):
+            pdf.cell(w, 9, str(val), border=1, fill=True, align='C')
+        pdf.ln()
+    pdf.set_y(-20)
+    pdf.set_text_color(150, 150, 150)
+    pdf.set_font('Helvetica', '', 8)
+    pdf.cell(0, 10, 'grade-tracker-hf4o.onrender.com', align='C')
+    from flask import make_response
+    response = make_response(pdf.output())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=grade_report_{user["username"]}.pdf'
+    return response
