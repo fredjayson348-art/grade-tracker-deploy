@@ -508,7 +508,7 @@ def download_pdf():
     pdf.set_font('Helvetica', '', 8)
     pdf.cell(0, 10, 'grade-tracker-hf4o.onrender.com', align='C')
     from flask import make_response
-    response = make_response(pdf.output())
+    response = make_response(bytes(pdf.output()))
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'attachment; filename=grade_report_{user["username"]}.pdf'
     return response
