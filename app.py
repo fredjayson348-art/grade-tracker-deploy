@@ -18,7 +18,7 @@ app.secret_key = 'fred_secret_key_2025'
 google_bp = make_google_blueprint(
     client_id=os.environ.get('GOOGLE_CLIENT_ID'),
     client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
-    scope=['profile', 'email'],
+    scope=['openid', 'https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'],
     redirect_to="google_callback",
 )
 app.register_blueprint(google_bp, url_prefix='/auth')
