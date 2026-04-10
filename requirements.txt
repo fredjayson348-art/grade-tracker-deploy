@@ -6,3 +6,4 @@ flask-dance
 flask-dance
 fpdf2
 authlib
+authlib
