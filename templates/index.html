@@ -68,6 +68,15 @@
     </style>
 </head>
 <body>
+<button id="dark-mode-toggle" style="position:fixed;top:10px;right:10px;z-index:1000;">Toggle Dark Mode</button>
+<style>
+body.dark-mode { background:#121212; color:#e0e0e0; }
+</style>
+<script>
+function applyTheme(){ if(localStorage.getItem('darkMode')==='true'){ document.body.classList.add('dark-mode'); } else { document.body.classList.remove('dark-mode'); } }
+document.getElementById('dark-mode-toggle').addEventListener('click',()=>{ const enabled = document.body.classList.toggle('dark-mode'); localStorage.setItem('darkMode', enabled); });
+applyTheme();
+</script>
 <nav>
     <div class="nav-logo">grade<span>.</span>track</div>
     <div class="nav-tabs">
